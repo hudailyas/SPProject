@@ -51,23 +51,22 @@ int main(int argc,char *argv[])
         exit(1);
     }
 
-        while(true)
-        {
+
             pthread_t thread1, thread2;
             char* message = "hello";
 
             pthread_create(&thread1,NULL,writeToServer,(void*) message);
-
             pthread_create(&thread2,NULL,readFromServer,(void*) message);
+
             pthread_join(thread1,NULL);
             pthread_join(thread2,NULL);
 
-        }
+
 
 }
 void *writeToServer(void *ptr)
 {
-
+    while(true){
     if (write(STDOUT_FILENO,"Please enter a command\n",24) < 0)
         perror("prompt error: ");
     int bytes = read(STDIN_FILENO,s,sizeof(s));
@@ -86,15 +85,17 @@ void *writeToServer(void *ptr)
     write(sock,s,bytes-1);
 
 }
+}
 
 void *readFromServer(void *ptr)
 {
     //reading
-
+while(true){
     fflush(stdout);
     int b = read(sock, ret,10000);
     ret[b] = '\0';
     if (strcmp(ret,"exit")==0)
         exit(EXIT_SUCCESS);
     write(STDOUT_FILENO,ret,b);
+}
 }

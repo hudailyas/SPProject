@@ -105,6 +105,35 @@ static void handler(int signo)
                         break;
                     }
             }
+        char * delsock;
+        int fd = open("deleteClient",O_RDONLY,S_IRWXU);
+        int by = lseek(fd,0,SEEK_END);
+        char reading[by];
+        lseek(fd,-by,SEEK_END);
+        if (read(fd,reading,by) < 0)
+            perror("reading ");
+        char* str = strtok(reading," ");
+        char tocheck[10];
+        sprintf(tocheck,"%d",pid);
+        while(str != NULL)
+        {
+            if (strcmp(str,tocheck) == 0)
+            {
+                delsock = strtok(NULL," ");
+                break;
+
+            }
+            str = strtok(NULL," ");
+        }
+        sscanf(delsock,"%d",&pid);
+        for (int index = 0;index < connections.size();index++)
+        {
+            if (connections[index].csock == pid)
+            {
+                connections.erase(connections.begin()+index);
+                break;
+            }
+        }
 
     }
 
@@ -226,6 +255,7 @@ void *acceptThread(void* ptr)
 {
         int ret;
         char buff[1024];
+        int fd = open("deleteClient",O_RDWR|O_TRUNC,S_IRWXU);
         do{
         msgsock = accept(sock,0,0);
          if (msgsock < 0)
@@ -254,8 +284,6 @@ void *acceptThread(void* ptr)
             if (pid == 0){
             do
             {
-                cout<<getpid();
-                cout.flush();
                 bzero(buff,sizeof(buff));
                 ret = read(msgsock,buff,sizeof(buff));
                 if (ret < 0)
@@ -393,7 +421,14 @@ void *acceptThread(void* ptr)
                     //EXIT CLIENT
                     else if(strcmp(str,"exit")==0)
                     {
-
+                        char forfile[10];
+                        char cpid[5];
+                        char msgs[5];
+                        sprintf(cpid,"%d ",getpid());
+                        strcat(forfile,cpid);
+                        sprintf(msgs,"%d ",msgsock);
+                        strcat(forfile,msgs);
+                        write(fd,forfile,strlen(forfile));
                         write(msgsock,"exit",4);
                         exit(EXIT_SUCCESS);
                     }
