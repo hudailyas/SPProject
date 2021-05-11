@@ -305,7 +305,7 @@ void *acceptThread(void* ptr)
                         str = strtok(NULL," ");
                         if (str == NULL)
                         {
-                            write(msgsock,"INCOMPLETE COMMAND\n",20);
+                            write(msgsock,"INCOMPLETE COMMAND\n\n",20);
                         }
                         else{
                         int execfd[2];
@@ -318,7 +318,7 @@ void *acceptThread(void* ptr)
                             int execs = execlp(str,str,NULL);
                             if (execs == -1)
                             {
-                                write(execfd[1],"Failed\n",8);
+                                write(execfd[1],"Failed\n\n",8);
                             }
                         }
                         else if (npid > 0)
@@ -330,7 +330,7 @@ void *acceptThread(void* ptr)
                             char e[20];
                             int byte = read(execfd[0],e,7);
                             if (byte ==  0 ){
-                            write(msgsock,"running\n",9);
+                            write(msgsock,"running\n\n",9);
                             activeProc.push_back(npro);
                             allProc.push_back(npro);
                             }
@@ -440,13 +440,13 @@ void *acceptThread(void* ptr)
                         str = strtok(NULL," ");
                         if (str == NULL)
                         {
-                            write(msgsock,"INCOMPLETE COMMAND\n",20);
+                            write(msgsock,"INCOMPLETE COMMAND\n\n",20);
                         }
                         else{
                         if (str[0] >= '0' && str[0]<='9'){
                             sscanf(str,"%d",&pidk);
                             kill(pidk,SIGTERM);
-                            write(msgsock,"program killed\n",16);
+                            write(msgsock,"program killed\n\n",16);
                             for (int ind = 0;ind<activeProc.size();ind++)
                             {
                                 if (activeProc[ind].pid == pidk)
@@ -457,7 +457,7 @@ void *acceptThread(void* ptr)
                                 }
                             }
                             if (found != true){
-                                write(msgsock,"failed\n",8);
+                                write(msgsock,"failed\n\n",8);
 
                             }
                             for (int inde = 0;inde<allProc.size();inde++)
@@ -482,12 +482,12 @@ void *acceptThread(void* ptr)
                                 found = true;
                                 kill(activeProc[ind].pid,SIGTERM);
                                 activeProc.erase(activeProc.begin()+ind);
-                                write(msgsock,"program killed\n",16);
+                                write(msgsock,"program killed\n\n",16);
                                 break;
                               }
                             }
                             if (found != true){
-                                write(msgsock,"failed\n",8);
+                                write(msgsock,"failed\n\n",8);
                             }
                             for (int inde = 0;inde<allProc.size();inde++)
                             {
@@ -509,7 +509,7 @@ void *acceptThread(void* ptr)
                         str = strtok(NULL," ");
                         if (str == NULL)
                         {
-                            write(msgsock,"INCOMPLETE COMMAND\n",20);
+                            write(msgsock,"INCOMPLETE COMMAND\n\n",20);
                         }
                         else{
                         while(str!= NULL)
@@ -520,7 +520,7 @@ void *acceptThread(void* ptr)
 
                         int len = lengthResult(addresult);
                         char w[len];
-                        sprintf(w,"Ans of addition = %d\n",addresult);
+                        sprintf(w,"Ans of addition = %d\n\n",addresult);
                         addresult = 0;
                         write(msgsock,w,len+20);
 
@@ -532,7 +532,7 @@ void *acceptThread(void* ptr)
                         str = strtok(NULL," ");
                         if (str == NULL)
                         {
-                            write(msgsock,"INCOMPLETE COMMAND\n",20);
+                            write(msgsock,"INCOMPLETE COMMAND\n\n",20);
                         }
                         else{
                         subresult = atoi(str);
@@ -548,7 +548,7 @@ void *acceptThread(void* ptr)
 
                         int len = lengthResult(subresult);
                         char w[len];
-                        sprintf(w,"Ans of subtraction = %d\n",subresult);
+                        sprintf(w,"Ans of subtraction = %d\n\n",subresult);
                         write(msgsock,w,len+23);
 
                     }
@@ -559,7 +559,7 @@ void *acceptThread(void* ptr)
                         str = strtok(NULL," ");
                         if (str == NULL)
                         {
-                            write(msgsock,"INCOMPLETE COMMAND\n",20);
+                            write(msgsock,"INCOMPLETE COMMAND\n\n",20);
                         }
                         else{
                         multresult = atoi(str);
@@ -573,7 +573,7 @@ void *acceptThread(void* ptr)
 
                         int len = lengthResult(multresult);
                         char w[len];
-                        sprintf(w,"Ans of multiplication = %d\n",multresult);
+                        sprintf(w,"Ans of multiplication = %d\n\n",multresult);
                         write(msgsock,w,len + 26);
 
                     }
@@ -584,7 +584,7 @@ void *acceptThread(void* ptr)
                         str = strtok(NULL," ");
                         if (str == NULL)
                         {
-                            write(msgsock,"INCOMPLETE COMMAND\n",20);
+                            write(msgsock,"INCOMPLETE COMMAND\n\n",20);
                         }
                         else{
                         divresult = atoi(str);
@@ -596,7 +596,7 @@ void *acceptThread(void* ptr)
 
                             if (st==0){
                                 divresult = NULL;
-                                write(msgsock,"Division  by zero not possible\n",32);
+                                write(msgsock,"Division  by zero not possible\n\n",32);
                                 }
 
                             else
@@ -610,7 +610,7 @@ void *acceptThread(void* ptr)
                         if (divresult != NULL){
                         int len = lengthResult(divresult);
                         char w[len];
-                        sprintf(w,"Ans of division = %d\n",divresult);
+                        sprintf(w,"Ans of division = %d\n\n",divresult);
                         cout<<"hello";
                         cout.flush();
                         write(msgsock,w,len + 21);
@@ -619,7 +619,7 @@ void *acceptThread(void* ptr)
                     //INVALID COMMAND
                     else
                     {
-                    write(msgsock,"INVALID COMMAND\n",16);
+                    write(msgsock,"INVALID COMMAND\n\n",16);
                     }
 
                 }
@@ -643,32 +643,73 @@ void *commandThread(void* message)
 
 
                s[bytes-1] = '\0';
+               char* str = strtok(s," ");
 
-                if (strcmp("CONN LIST",s) == 0)
+                if (strcmp("conn",str) == 0 )
                 {
-                    char clientid[20];
-                    char clientip[20];
-                    char clientsocket[20];
-                    char clientport[20];
-                    char connectionList[3000] = "Connected clients are\n\n";
-                    for (int index = 0;index<connections.size();index++)
+                    str = strtok(NULL," ");
+                    if(str == NULL)
                     {
-                        sprintf(clientid,"Client ID is: %s\n",connections[index].id);
-                        strcat(connectionList,clientid);
-                        sprintf(clientip,"Client IP is: %s\n",connections[index].ip);
-                        strcat(connectionList,clientip);
-                        sprintf(clientport,"Client Port is: %d\n",connections[index].port);
-                        strcat(connectionList,clientport);
-                        sprintf(clientsocket,"Client Socket fd is: %d\n",connections[index].csock);
-                        strcat(connectionList,clientsocket);
-                        strcat(connectionList,"\n");
-
-
-
+                        write(STDOUT_FILENO,"INCOMPLETE COMMAND\n",20);
                     }
-                    write(STDOUT_FILENO,connectionList,strlen(connectionList));
+                    else{
+                        char clientid[20];
+                        char clientip[20];
+                        char clientsocket[20];
+                        char clientport[20];
+                        char connectionList[3000] = "Connected clients are:\n\n";
+                        for (int index = 0;index<connections.size();index++)
+                        {
+                            sprintf(clientid,"Client ID is: %s\n",connections[index].id);
+                            strcat(connectionList,clientid);
+                            sprintf(clientip,"Client IP is: %s\n",connections[index].ip);
+                            strcat(connectionList,clientip);
+                            sprintf(clientport,"Client Port is: %d\n",connections[index].port);
+                            strcat(connectionList,clientport);
+                            sprintf(clientsocket,"Client Socket fd is: %d\n",connections[index].csock);
+                            strcat(connectionList,clientsocket);
+                            strcat(connectionList,"\n");
+                        }
+                        write(STDOUT_FILENO,connectionList,strlen(connectionList));
                 }
+                }
+                else if (strcmp("print",str) == 0)
+                {
 
-}
-}
+                    str = strtok(NULL," ");
+                    if (str == NULL)
+                    {
+                    write(STDOUT_FILENO,"INCOMPLETE COMMAND\n",20);
+                    }
+                    else
+                    {
+                        char toprint[strlen(str)];
+                        strcpy(toprint,str);
+                        strcat(toprint,"\n");
+                        str = strtok(NULL, " ");
+                        if (str == NULL)
+                        {
+                             for (int index = 0;index<connections.size();index++)
+                             {
+                                write(connections[index].csock,toprint,strlen(toprint));
+                             }
+                        }
+                        else
+                        {
+                             for (int index = 0;index<connections.size();index++)
+                             {
+                                if(strcmp(str,connections[index].id) == 0)
+                                {
+                                    write(connections[index].csock,toprint,strlen(toprint));
+                                    break;
+                                }
+                             }
+                        }
+                    }
+                }
+                else if(strcmp("list",str) == 0)
+                {
+
+                }
+}}
 

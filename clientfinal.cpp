@@ -66,9 +66,10 @@ int main(int argc,char *argv[])
 }
 void *writeToServer(void *ptr)
 {
-    while(true){
-    if (write(STDOUT_FILENO,"Please enter a command\n",24) < 0)
+    if (write(STDOUT_FILENO,"Please enter a command\n\n",24) < 0)
         perror("prompt error: ");
+    while(true){
+
     int bytes = read(STDIN_FILENO,s,sizeof(s));
     if (bytes == 0){
     perror("reading: ");
@@ -90,7 +91,7 @@ void *writeToServer(void *ptr)
 void *readFromServer(void *ptr)
 {
     //reading
-while(true){
+    while(true){
     fflush(stdout);
     int b = read(sock, ret,10000);
     ret[b] = '\0';
