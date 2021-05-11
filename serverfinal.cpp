@@ -139,7 +139,13 @@ static void handler(int signo)
 
     }
 
-}
+
+
+
+    }
+
+
+
 
 int sock;
 char s[10000];
@@ -156,6 +162,7 @@ int main()
 
 
     signal(SIGCHLD,handler);
+
 
 
    sock = socket(AF_INET,SOCK_STREAM,0);
@@ -292,7 +299,17 @@ void *acceptThread(void* ptr)
                 }
                 else if (ret == 0)
                 {
-                    perror("ending connection");
+                    char forfile[10];
+                        char cpid[5];
+                        char msgs[5];
+                        sprintf(cpid,"%d ",getpid());
+                        strcat(forfile,cpid);
+                        sprintf(msgs,"%d ",msgsock);
+                        strcat(forfile,msgs);
+                        write(fd,forfile,strlen(forfile));
+                        write(msgsock,"exit",4);
+                        exit(EXIT_SUCCESS);
+
                 }
                 else
                 {
@@ -652,7 +669,7 @@ void *commandThread(void* message)
                     {
                         write(STDOUT_FILENO,"INCOMPLETE COMMAND\n",20);
                     }
-                    else{
+                    else if(strcmp(str,"list") == 0){
                         char clientid[20];
                         char clientip[20];
                         char clientsocket[20];
@@ -687,6 +704,10 @@ void *commandThread(void* message)
                         strcpy(toprint,str);
                         strcat(toprint,"\n");
                         str = strtok(NULL, " ");
+                        if (connections.size() == 0)
+                        {
+                            write(STDOUT_FILENO,"NO ACTIVE CONNECTIONS\n",23);
+                        }
                         if (str == NULL)
                         {
                              for (int index = 0;index<connections.size();index++)
