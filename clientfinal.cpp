@@ -82,8 +82,10 @@ void *writeToServer(void *ptr)
     //writing to server
     //for empty line
     if (strcmp(s,"\n") == 0)
-        write(sock,"shdg",4);
-    write(sock,s,bytes-1);
+        if (write(sock,"shdg",4) < 0)
+            perror("writing ");
+    if (write(sock,s,bytes-1) < 0)
+        perror("writing ");
 
 }
 }
@@ -93,10 +95,15 @@ void *readFromServer(void *ptr)
     //reading
     while(true){
     fflush(stdout);
+    bzero(ret,sizeof(ret));
     int b = read(sock, ret,10000);
     ret[b] = '\0';
-    if (strcmp(ret,"exit")==0)
+    if (b < 0)
+        perror("reading ");
+    if (strcmp(ret,"exit\n")==0)
         exit(EXIT_SUCCESS);
-    write(STDOUT_FILENO,ret,b);
+    if (write(STDOUT_FILENO,ret,b) < 0)
+        perror("writing ");
+    ret[b] = '\0';
 }
 }
