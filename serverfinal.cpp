@@ -71,6 +71,8 @@ int i = 1;
 int msgsock;
 int sock;
 char s[10000];
+char clientid[10];
+int fdp;
 socklen_t len;
 struct sockaddr_in addr;
 vector <proc>activeProc;
@@ -85,7 +87,7 @@ int lengthResult(int k);
 bool checkChar(char * str);
 void *acceptThread(void* message);
 void *commandThread(void* message);
-
+void listingActive();
 
 static void handler(int signo)
 {
@@ -113,6 +115,9 @@ static void handler(int signo)
                     break;
                 }
             }
+            fdp = open(clientid,O_RDWR|O_CREAT|O_TRUNC,S_IRWXU);
+            listingActive();
+
         }
     }
     if (signo == SIGINT)
@@ -120,6 +125,8 @@ static void handler(int signo)
 
         for (int index = 0;index < connections.size();index++)
         {
+            remove(connections[index].id);
+
             if (write(connections[index].csock,"exit\n",6) < 0)
                 perror("writing ");
         }
@@ -134,12 +141,7 @@ void handler2(int signo)
         int pidw = waitpid(0,&status,WNOHANG);
         if (pidw > 0)
         {
-            for (int index = 0;index < connections.size();index++)
-            {
-            if (write(connections[index].csock,"exit\n",6) < 0)
-                perror("writing ");
 
-            }
             char * delsock;
             int so;
             int fd = open("deleteClient",O_RDONLY,S_IRWXU);
@@ -179,6 +181,7 @@ int main()
 {
    int length;
    struct sockaddr_in server;
+   signal(SIGINT,handler);
    signal(SIGCHLD,handler2);
    sock = socket(AF_INET,SOCK_STREAM,0);
    if (sock < 0)
@@ -229,8 +232,9 @@ close(msgsock);
 void *acceptThread(void* ptr)
 {
     int ret;
+    char id[45];
     char buff[1024];
-    int fd = open("deleteClient",O_RDWR|O_TRUNC,S_IRWXU);
+    int fd = open("deleteClient",O_RDWR|O_TRUNC|O_CREAT,S_IRWXU);
     if (fd < 0)
     {
         perror("open ");
@@ -238,12 +242,14 @@ void *acceptThread(void* ptr)
     bool check;
     do
     {
+
         msgsock = accept(sock,0,0);
         if (msgsock < 0)
         {
             perror("not accepted");
             exit(1);
         }
+
         len = sizeof(addr);
         if (getpeername(msgsock, (struct sockaddr*)&addr, &len) < 0)
             perror("client addr");
@@ -253,26 +259,36 @@ void *acceptThread(void* ptr)
         clientInfo newclient = clientInfo(cid,inet_ntoa(addr.sin_addr),ntohs(addr.sin_port),msgsock);
         connections.push_back(newclient);
 
+        strcpy(clientid,newclient.id);
+        fdp = open(clientid,O_RDWR|O_CREAT|O_TRUNC,S_IRWXU);
+        sprintf(id, "Active Processes List for Client ID: %s\n\n",clientid);
+        write(fdp,id,strlen(id));
+        write(fdp,"No active processes yet\n\n",26);
+        lseek(fdp,0,SEEK_SET);
             int pid = fork();
             if (pid == 0)
             {
                 signal(SIGCHLD,handler);
-                signal(SIGINT,handler);
+
                 do
                 {
-                    bzero(buff,sizeof(buff));
+                    //bzero(buff,sizeof(buff));
                     ret = read(msgsock,buff,sizeof(buff));
+                    buff[ret] = '\0';
                     if (ret < 0)
                     {
                         perror("read error");
                     }
                     else if (ret == 0)
                     {
+
+                        remove(clientid) == 0;
+
                         for (int index = 0;index<activeProc.size();index++)
                         {
                             kill(activeProc[index].pid,SIGTERM);
                         }
-                        char forfile[10];
+                        char forfile[10] = "";
                         char cpid[5];
                         char msgs[5];
                         sprintf(cpid,"%d ",getpid());
@@ -280,7 +296,7 @@ void *acceptThread(void* ptr)
                         sprintf(msgs,"%d ",msgsock);
                         strcat(forfile,msgs);
                         write(fd,forfile,strlen(forfile));
-                        write(msgsock,"exit",4);
+                        write(msgsock,"exit\n",6);
                         exit(EXIT_SUCCESS);
 
                     }
@@ -295,7 +311,7 @@ void *acceptThread(void* ptr)
                             str = strtok(NULL," ");
                             if (str == NULL)
                             {
-                                if (write(msgsock,"INCOMPLETE COMMAND\n\n",22) < 0)
+                                if (write(msgsock,"INCOMPLETE COMMAND\n\n",21) < 0)
                                     perror("writing ");
                             }
                             else
@@ -424,6 +440,10 @@ void *acceptThread(void* ptr)
                         //EXIT CLIENT
                         else if(strcmp(str,"exit")==0)
                         {
+                            if (remove(clientid) != 0)
+                                {
+                                    perror("removing file");
+                                }
                             for (int index = 0;index<activeProc.size();index++)
                             {
                                 kill(activeProc[index].pid,SIGTERM);
@@ -435,11 +455,12 @@ void *acceptThread(void* ptr)
                             strcat(forfile,cpid);
                             sprintf(msgs,"%d ",msgsock);
                             strcat(forfile,msgs);
+
                             //cout<<msgs;
+
                             //cout.flush();
                             if (write(fd,forfile,strlen(forfile)) < 0)
                                 perror("writing ");
-
                             if (write(msgsock,"exit\n",6) < 0)
                                 perror("writing ");
                             exit(EXIT_SUCCESS);
@@ -453,7 +474,7 @@ void *acceptThread(void* ptr)
                             str = strtok(NULL," ");
                             if (str == NULL)
                             {
-                                if (write(msgsock,"INCOMPLETE COMMAND\n\n",22) < 0)
+                                if (write(msgsock,"INCOMPLETE COMMAND\n\n",21) < 0)
                                     perror("writing ");
                             }
                             else
@@ -474,7 +495,7 @@ void *acceptThread(void* ptr)
                                     }
                                 }
                                 if (found != true){
-                                    if (write(msgsock,"Failed\n\n",10) < 0)
+                                    if (write(msgsock,"Failed\n\n",9) < 0)
                                         perror("writing ");
 
                                 }
@@ -500,13 +521,13 @@ void *acceptThread(void* ptr)
                                         found = true;
                                         kill(activeProc[ind].pid,SIGTERM);
                                         activeProc.erase(activeProc.begin()+ind);
-                                        if (write(msgsock,"program killed\n\n",18) < 0)
+                                        if (write(msgsock,"program killed\n\n",16) < 0)
                                             perror("writing ");
                                         break;
                                       }
                                     }
                                     if (found != true){
-                                        if (write(msgsock,"Failed\n\n",10) < 0)
+                                        if (write(msgsock,"Failed\n\n",9) < 0)
                                             perror("writing ");
                                     }
                                     for (int inde = 0;inde<allProc.size();inde++)
@@ -530,7 +551,7 @@ void *acceptThread(void* ptr)
                             str = strtok(NULL," ");
                             if (str == NULL)
                             {
-                                if (write(msgsock,"INCOMPLETE COMMAND\n\n",22) < 0)
+                                if (write(msgsock,"INCOMPLETE COMMAND\n\n",21) < 0)
                                     perror("writing ");
                             }
                             else
@@ -561,7 +582,7 @@ void *acceptThread(void* ptr)
                             str = strtok(NULL," ");
                             if (str == NULL)
                             {
-                                if (write(msgsock,"INCOMPLETE COMMAND\n\n",22) < 0)
+                                if (write(msgsock,"INCOMPLETE COMMAND\n\n",21) < 0)
                                     perror("writing ");
                             }
                             else if (!checkChar(str))
@@ -593,7 +614,7 @@ void *acceptThread(void* ptr)
                             str = strtok(NULL," ");
                             if (str == NULL)
                             {
-                                if (write(msgsock,"INCOMPLETE COMMAND\n\n",22) < 0)
+                                if (write(msgsock,"INCOMPLETE COMMAND\n\n",21) < 0)
                                     perror("writing ");
                             }
                             else if (!checkChar(str))
@@ -626,7 +647,7 @@ void *acceptThread(void* ptr)
                             str = strtok(NULL," ");
                             if (str == NULL)
                             {
-                                if (write(msgsock,"INCOMPLETE COMMAND\n\n",20) < 0)
+                                if (write(msgsock,"INCOMPLETE COMMAND\n\n",21) < 0)
                                     perror("writing ");
                             }
                             else if (!checkChar(str)){
@@ -663,13 +684,16 @@ void *acceptThread(void* ptr)
                         }}
                         }
                         //INVALID COMMAND
+
                         else
                         {
-                        if (write(msgsock,"INVALID COMMAND\n\n",19) < 0)
+                        if (write(msgsock,"INVALID COMMAND\n\n",18) < 0)
                             perror("writing ");
                         }
 
                     }
+
+                    listingActive();
                 }while(ret != 0);
             }
     }while(true);
@@ -681,12 +705,17 @@ void *commandThread(void* message)
      while(true)
      {
         if (write(STDOUT_FILENO,"Please enter your command\n",27) < 0)
-                        perror("prompt error: ");
+            perror("prompt error: ");
         int bytes = read(STDIN_FILENO,s,sizeof(s));
         if (bytes == 0)
             perror("reading: ");
         if (bytes < 0)
             perror("reading ");
+        if (strcmp(s,"\n") == 0)
+        {
+            if (write(STDOUT_FILENO,"INVALID COMMAND\n\n",18) < 0)
+                perror("writing ");
+        }
         else
         {
             s[bytes-1] = '\0';
@@ -697,7 +726,7 @@ void *commandThread(void* message)
                 str = strtok(NULL," ");
                 if(str == NULL)
                 {
-                    if (write(STDOUT_FILENO,"INCOMPLETE COMMAND\n\n",22) < 0)
+                    if (write(STDOUT_FILENO,"INCOMPLETE COMMAND\n\n",21) < 0)
                         perror("writing ");
                 }
                 else if(strcmp(str,"list") == 0)
@@ -707,6 +736,13 @@ void *commandThread(void* message)
                     char clientsocket[20];
                     char clientport[20];
                     char connectionList[3000] = "Connected clients are:\n\n";
+                    if (connections.size() == 0)
+                    {
+                        if (write(STDOUT_FILENO,"NO ACTIVE CONNECTIONS\n\n",23) < 0)
+                            perror("writing ");
+                    }
+                    else
+                    {
                         for (int index = 0;index<connections.size();index++)
                         {
                             sprintf(clientid,"Client ID is: %s\n",connections[index].id);
@@ -717,57 +753,96 @@ void *commandThread(void* message)
                             strcat(connectionList,clientport);
                             sprintf(clientsocket,"Client Socket fd is: %d\n",connections[index].csock);
                             strcat(connectionList,clientsocket);
-                            strcat(connectionList,"\n");
+                            strcat(connectionList,"\n\n");
                         }
-                        if (write(STDOUT_FILENO,connectionList,strlen(connectionList)) < 0)
-                            perror("writing ");
+                            if (write(STDOUT_FILENO,connectionList,strlen(connectionList)) < 0)
+                                perror("writing ");
+                    }
                 }
             }
-            else if (strcmp("print",str) == 0)
-            {
-                str = strtok(NULL," ");
-                if (str == NULL)
+                else if (strcmp("print",str) == 0)
                 {
-                    if (write(STDOUT_FILENO,"INCOMPLETE COMMAND\n\n",22) < 0)
-                        perror("writing ");
-                }
-                    else
+                    bool idfound = NULL;
+                    str = strtok(NULL," ");
+                    if (str == NULL)
                     {
-                        char toprint[strlen(str)];
-                        strcpy(toprint,str);
-                        strcat(toprint,"\n\n");
-                        str = strtok(NULL, " ");
-                        if (connections.size() == 0)
-                        {
-                            if (write(STDOUT_FILENO,"NO ACTIVE CONNECTIONS\n\n",23) < 0)
+                        if (write(STDOUT_FILENO,"INCOMPLETE COMMAND\n\n",21) < 0)
                             perror("writing ");
-                        }
-                        if (str == NULL)
+                    }
+                        else
                         {
-                            for (int index = 0;index<connections.size();index++)
+                            if (connections.size() == 0)
                             {
-                            if (write(connections[index].csock,toprint,strlen(toprint)) < 0)
-                                perror("writing ");
+                                if (write(STDOUT_FILENO,"NO ACTIVE CONNECTIONS\n\n",23) < 0)
+                                    perror("writing ");
                             }
+                            else {
+                            char toprint[1000] = "";
+                            while (str != NULL)
+                            {
+                                for (int index = 0;index < connections.size();index++)
+                                {
+                                    if (strcmp(str,connections[index].id) == 0)
+                                    {
+                                        idfound = true;
+                                        strcat(toprint,"\n\n");
+                                        write(connections[index].csock,toprint,strlen(toprint));
+
+                                        break;
+                                    }
+                                }
+                                if (idfound != true)
+                                    {
+                                        strcat(toprint,str);
+                                        strcat(toprint," ");
+                                    }
+
+
+                                    str = strtok(NULL," ");
+
+                                }
+                                if (idfound != true)
+                                {
+                                strcat(toprint,"\n\n");
+                                  for (int index = 0;index < connections.size();index++)
+                                        {
+                                            write(connections[index].csock,toprint,strlen(toprint));
+
+                                        }
+                                }
+                    }
+                    }
+                }
+                    else if(strcmp("list",str) == 0)
+                    {
+
+                        if (connections.size() == 0){
+                           if (write(STDOUT_FILENO,"NO ACTIVE CONNECTIONS\n\n",23) < 0)
+                                perror("writing ");
                         }
                         else
                         {
-                            for (int index = 0;index<connections.size();index++)
-                            {
-                                if(strcmp(str,connections[index].id) == 0)
-                                {
-                                    if (write(connections[index].csock,toprint,strlen(toprint)) < 0)
-                                    perror("writing ");
-                                    break;
-                                }
-                            }
+                        for (int index = 0; index < connections.size();index++)
+                        {
+
+                            int rfd = open(connections[index].id,O_RDONLY,S_IRWXU);
+                            int by = lseek(rfd,0,SEEK_END);
+                            char reading[by];
+                            lseek(rfd,-by,SEEK_END);
+                            if (read(rfd,reading,by) < 0)
+                                perror("reading ");
+                            else
+                                write(STDOUT_FILENO,reading,by);
+
                         }
                     }
-                }
-                else if(strcmp("list",str) == 0)
-                {
+                    }
 
-                }
+                    else
+                    {
+                        if (write(STDOUT_FILENO,"INVALID COMMAND\n\n",18) < 0)
+                            perror("writing ");
+                    }
         }
     }
 }
@@ -830,5 +905,38 @@ bool checkChar(char * str)
     }
 return false;
 
+}
+
+void listingActive()
+{
+
+    char client[3000] = "Active Processes List for Client ID: ";
+    char csockchar[5];
+    strcat(client,clientid);
+    strcat(client, "\n\n");
+    char processname[25];
+    char starttime[25];
+    char endtime[25];
+    char processid[35];
+    char active[20];
+    char timeelapsed[30];
+    if (activeProc.size() == 0)
+    {
+        strcat(client,"No active processes yet\n\n");
+    }
+    for (int a = 0;a<activeProc.size();a++)
+    {
+        int pn = sprintf(processname,"Process Name: %s\n",activeProc[a].name);
+        strcat(client,processname);
+        int pi = sprintf(processid,"Process ID: %d\n",activeProc[a].pid);
+        strcat(client,processid);
+        int st = sprintf(starttime,"Start Time: %s",ctime(&activeProc[a].start));
+        strcat(client,starttime);
+        strcat(client,"\n\n");
+    }
+
+    if (write(fdp,client,strlen(client)) < 0)
+        perror("writing ");
+    lseek(fdp,0,SEEK_SET);
 }
 
